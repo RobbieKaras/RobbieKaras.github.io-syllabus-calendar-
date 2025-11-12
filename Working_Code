@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Syllabus Calendar Converter</title>
+    <!-- Load Tailwind CSS for utility-first styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for the textarea and results */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #9ca3af; /* gray-400 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background-color: #f3f4f6; /* gray-100 */
+        }
+
+        /* Inter font setup */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Custom spinner animation */
+        .spinner {
+            border-top-color: #3b82f6;
+            -webkit-animation: spin 1s ease-in-out infinite;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Calendar grid day styling (RE-ADDED) */
+        .calendar-day {
+            min-height: 80px;
+            border-radius: 8px;
+            padding: 4px;
+            transition: all 0.1s ease-in-out;
+            cursor: default;
+        }
+        .calendar-day:hover {
+            background-color: #f3f4f6; /* gray-100 */
+        }
+        .has-events {
+            background-color: #dbeafe; /* blue-100 */
+            border: 1px solid #93c5fd; /* blue-300 */
+            position: relative;
+        }
+        .has-events:hover {
+             background-color: #bfdbfe; /* blue-200 */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8">
+
+    <div id="app" class="max-w-4xl mx-auto bg-white shadow-2xl rounded-xl p-6 md:p-10">
+
+        <header class="text-center mb-10">
+            <h1 class="4xl font-extrabold text-gray-900 mb-2">Syllabus Calendar Generator</h1>
+            <p class="text-lg text-gray-500">Upload multiple syllabi, and let AI build your consolidated academic calendar.</p>
+        </header>
+
+        <!-- Main Input and Control Area -->
+        <div class="space-y-6">
+            
+            <!-- File Input Area -->
+            <div>
+                <label for="syllabus-file-input" class="block text-sm font-medium text-gray-700 mb-2">1. Upload Syllabus Files (Select Multiple):</label>
+                <input type="file" id="syllabus-file-input" multiple accept=".txt, .pdf, .doc, .docx" class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                <p class="mt-2 text-sm text-gray-500">For best results, please use **.pdf** or plain **.txt** files. The text in the file **must be selectable** (not just a scanned image) for the AI to analyze it correctly.</p>
+            </div>
+
+            <!-- Dates and Timezone Input -->
+            <div class="space-y-4">
+                <div class="flex flex-col sm:flex-row sm:space-x-4">
+                    <div class="flex-1">
+                        <label for="start-date" class="block text-sm font-medium text-gray-700 mb-2">2a. Course Start Date (Required):</label>
+                        <input type="date" id="start-date" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                    </div>
+                    <div class="flex-1">
+                        <label for="end-date" class="block text-sm font-medium text-gray-700 mb-2">2b. Course End Date (Required):</label>
+                        <input type="date" id="end-date" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                    </div>
+                </div>
+                <div>
+                    <label for="timezone-offset" class="block text-sm font-medium text-gray-700 mb-2">3. Timezone (e.g., -5 for EST):</label>
+                    <input type="number" id="timezone-offset" value="-5" min="-12" max="14" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex justify-end space-x-4">
+                <button id="generate-button"
+                        class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50 flex items-center justify-center">
+                    <span id="button-text">Generate Calendar</span>
+                    <div id="spinner" class="spinner w-5 h-5 border-4 border-t-4 border-white rounded-full ml-3 hidden"></div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Output Area (Calendar Preview) -->
+        <div id="results-area" class="mt-12 hidden">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 border-b pb-2">4. Generated Assignments Preview</h2>
+
+            <!-- View Toggle (RE-ADDED) -->
+            <div class="flex space-x-2 mb-4">
+                <button id="list-view-btn" class="px-4 py-2 text-sm font-medium bg-blue-500 text-white rounded-lg">List View</button>
+                <button id="calendar-view-btn" class="px-4 py-2 text-sm font-medium bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Calendar View</button>
+            </div>
+
+            <!-- List View -->
+            <div id="list-view" class="space-y-4">
+                <div id="event-list">
+                    <!-- Events will be rendered here, grouped by class heading -->
+                </div>
+            </div>
+
+            <!-- Calendar View (RE-ADDED) -->
+            <div id="calendar-view" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <button id="prev-month-btn" class="p-2 rounded-full hover:bg-gray-200 transition duration-150">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <h3 id="current-month-year" class="text-xl font-semibold text-gray-900"></h3>
+                    <button id="next-month-btn" class="p-2 rounded-full hover:bg-gray-200 transition duration-150">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+                
+                <!-- Day Labels -->
+                <div class="grid grid-cols-7 gap-1 text-center font-bold text-gray-600 mb-2 text-sm">
+                    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div id="calendar-grid" class="grid grid-cols-7 gap-1 border border-gray-200 rounded-lg p-2 bg-white">
+                    <!-- Calendar days will be rendered here -->
+                </div>
+
+                <!-- Event Details Popup (Simple) -->
+                <div id="day-events-detail" class="mt-4 p-4 bg-white border border-gray-200 rounded-lg shadow-md hidden">
+                    <h4 class="text-lg font-semibold mb-2" id="detail-date-title"></h4>
+                    <ul id="detail-event-list" class="space-y-1 text-sm">
+                        <!-- Event details for the selected day go here -->
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-10 text-center">
+                <button id="export-button" disabled
+                        class="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50">
+                    5. Export Consolidated .ICS and Import
+                </button>
+                <p class="text-sm text-gray-500 mt-3">This will download a **single file (.ics)** with all events, and automatically open the Google Calendar import page.</p>
+            </div>
+        </div>
+
+        <!-- Error/Message Modal -->
+        <div id="message-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+                <h3 id="modal-title" class="text-xl font-bold mb-4 text-red-600">Error</h3>
+                <p id="modal-body" class="text-gray-700 mb-4">An unknown error occurred.</p>
+                <div class="flex justify-end">
+                    <button onclick="document.getElementById('message-modal').classList.add('hidden')" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Close</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Firebase SDK Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
+
+        let db = null;
+        let auth = null;
+        let userId = null;
+
+        // Function to show custom message modal
+        window.showMessage = (title, message, isError = true) => {
+            const modal = document.getElementById('message-modal');
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-title').className = isError ? 'text-xl font-bold mb-4 text-red-600' : 'text-xl font-bold mb-4 text-green-600';
+            document.getElementById('modal-body').textContent = message;
+            modal.classList.remove('hidden');
+        };
+
+        // Initialize Firebase and Authenticate
+        async function initializeFirebase() {
+            try {
+                if (Object.keys(firebaseConfig).length > 0) {
+                    setLogLevel('debug');
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    userId = auth.currentUser?.uid || crypto.randomUUID();
+                    console.log("Firebase initialized and authenticated. User ID:", userId);
+                } else {
+                    console.warn("Firebase config not available. Proceeding without persistent storage features.");
+                }
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                showMessage("Setup Error", "Failed to initialize authentication. The core LLM feature might still work, but storage features are disabled.", true);
+            }
+        }
+
+        initializeFirebase();
+
+        // --- Core Application Logic ---
+        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
+        const API_KEY = "AIzaSyCBJ3PqVIcEPMxNM2ZTNSA8WxAslBcu4ps"; // Canvas environment provides API key
+
+        // Global state for events and calendar (RE-ADDED calendar state)
+        let generatedEvents = [];
+        let currentMonth = new Date(); // State for the calendar view
+
+        // Structured output schema for the LLM
+        const EVENT_SCHEMA = {
+            type: "ARRAY",
+            description: "A list of academic events, assignments, or exams extracted from the syllabus.",
+            items: {
+                type: "OBJECT",
+                properties: {
+                    date: { "type": "STRING", "description": "The specific due date or exam date in YYYY-MM-DD format. If only a weekday is mentioned (e.g., 'Tuesday'), use the next date for that weekday starting from the course start date. Use the closest valid date found." },
+                    title: { "type": "STRING", "description": "A concise title for the assignment or event (e.g., 'Homework 3 Due', 'Midterm Exam', 'Reading Response')." },
+                    description: { "type": "STRING", "description": "A brief summary of the requirements or topics for this event. Max 150 characters." }
+                },
+                "required": ["date", "title", "description"]
+            }
+        };
+
+        // UI elements
+        const syllabusFileInput = document.getElementById('syllabus-file-input');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date'); 
+        const generateButton = document.getElementById('generate-button');
+        const exportButton = document.getElementById('export-button');
+        const resultsArea = document.getElementById('results-area');
+        
+        // View Elements
+        const listView = document.getElementById('list-view');
+        const calendarView = document.getElementById('calendar-view');
+        const listViewBtn = document.getElementById('list-view-btn');
+        const calendarViewBtn = document.getElementById('calendar-view-btn');
+        
+        // List View Elements
+        const eventList = document.getElementById('event-list');
+
+        // Calendar View Elements (RE-ADDED)
+        const prevMonthBtn = document.getElementById('prev-month-btn');
+        const nextMonthBtn = document.getElementById('next-month-btn');
+        const currentMonthYear = document.getElementById('current-month-year');
+        const calendarGrid = document.getElementById('calendar-grid');
+        const dayEventsDetail = document.getElementById('day-events-detail');
+        const detailDateTitle = document.getElementById('detail-date-title');
+        const detailEventList = document.getElementById('detail-event-list');
+
+        const buttonText = document.getElementById('button-text');
+        const spinner = document.getElementById('spinner');
+
+        // Set default dates: Start today, End in 4 months
+        startDateInput.valueAsDate = new Date();
+        const defaultEndDate = new Date();
+        defaultEndDate.setMonth(defaultEndDate.getMonth() + 4);
+        endDateInput.valueAsDate = defaultEndDate;
+
+        // Helper for exponential backoff during API calls
+        async function exponentialBackoffFetch(url, options, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) {
+                        return response;
+                    } else if (response.status === 429 || response.status >= 500) {
+                        // Rate limit or server error, retry
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    } else {
+                        // Other non-retriable error (e.g., 400 Bad Request)
+                        const errorBody = await response.json();
+                        throw new Error(`API Error ${response.status}: ${errorBody.error?.message || response.statusText}`);
+                    }
+                } catch (error) {
+                    if (i === maxRetries - 1) {
+                        throw error;
+                    }
+                    // For network errors, retry
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+        
+        // Helper to read file contents
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file); 
+            });
+        }
+        
+        // Helper to call Gemini API for a single syllabus text
+        async function callGeminiApiForText(syllabusText, courseStartDate, courseEndDate) {
+            const systemPrompt = `You are a professional academic assistant. Your task is to analyze the provided course syllabus text, identify all major due dates, assignments, exams, and key events, and extract them into a structured JSON array. The date format MUST be YYYY-MM-DD. If a date is relative (e.g., 'three weeks after start'), calculate it using the Course Start Date provided. If a date only specifies a day of the week (e.g., 'every Tuesday'), find the next valid date starting from the Course Start Date. **Crucially, only extract dates that fall between the Course Start Date (${courseStartDate}) and the Course End Date (${courseEndDate}).** Discard any purely descriptive, non-time-sensitive text.`;
+
+            const userQuery = `Analyze the following syllabus text and return a JSON array of events: \n\n${syllabusText}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: EVENT_SCHEMA
+                }
+            };
+
+            const response = await exponentialBackoffFetch(API_URL + API_KEY, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!jsonText) {
+                const errorMessage = result.candidates?.[0]?.finishReason || "API returned no structured content. Please refine your syllabus input.";
+                console.error("Gemini API Error:", result);
+                throw new Error(errorMessage);
+            }
+
+            return JSON.parse(jsonText);
+        }
+
+        // Helper to extract a clean course tag from the filename
+        function getCourseTag(fileName) {
+            // Remove file extension (.pdf, .docx, .txt)
+            let tag = fileName.replace(/\.(pdf|docx?|txt)$/i, '').trim();
+            
+            // Further clean by removing common unnecessary terms and trimming whitespace
+            tag = tag.replace(/syllabus|schedule|course|outline/ig, '').trim();
+
+            // Shorten if it's still very long
+            if (tag.length > 25) {
+                 tag = tag.substring(0, 22).trim() + '...';
+            }
+            
+            // If the resulting tag is empty or too short, fall back to the filename without extension
+            if (tag.length < 3) {
+                tag = fileName.replace(/\.(pdf|docx?|txt)$/i, '').trim();
+            }
+
+            return tag;
+        }
+
+        // Main function to call Gemini
+        async function fetchEventsFromGemini() {
+            console.log("--- Starting fetchEventsFromGemini ---");
+            const files = syllabusFileInput.files;
+            const courseStartDate = startDateInput.value;
+            const courseEndDate = endDateInput.value; 
+            
+            if (files.length === 0 || !courseStartDate || !courseEndDate) {
+                showMessage("Input Required", "Please upload at least one syllabus file, and ensure both the course start date and end date are set.", true);
+                return;
+            }
+
+            // Reset loading state
+            generateButton.disabled = true;
+            exportButton.disabled = true;
+            resultsArea.classList.add('hidden');
+            generatedEvents = []; // Clear previous results
+            spinner.classList.remove('hidden');
+            buttonText.textContent = "Processing...";
+
+            try {
+                let totalEvents = 0;
+                let successfulFiles = 0;
+                let failedFiles = 0;
+                
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    
+                    // Update UI for current file processing
+                    buttonText.textContent = `Processing File ${i + 1} of ${files.length}...`;
+
+                    try {
+                        // 1. Read file content
+                        const syllabusText = (await readFileAsText(file)).trim();
+                        
+                        if (!syllabusText || syllabusText.length < 50) { 
+                            console.warn(`File ${file.name} was empty, unreadable, or too short. Skipping.`);
+                            failedFiles++;
+                            continue; // Skip to next file
+                        }
+                        console.log(`Successfully read file ${file.name}. Content length: ${syllabusText.length}`);
+
+                        // 2. Call Gemini API, passing both dates
+                        const fileEvents = await callGeminiApiForText(syllabusText, courseStartDate, courseEndDate);
+                        
+                        // 3. Accumulate results
+                        const validEvents = fileEvents.filter(event => event.date && event.title);
+                        if (validEvents.length > 0) {
+                            // Add course identifier
+                            validEvents.forEach(e => {
+                                e.fileName = file.name; // Store filename for grouping/description
+                            });
+                            generatedEvents.push(...validEvents);
+                            totalEvents += validEvents.length;
+                            successfulFiles++;
+                        } else {
+                            failedFiles++;
+                            console.warn(`File ${file.name} yielded no valid events.`);
+                        }
+
+                    } catch (error) {
+                        failedFiles++;
+                        console.error(`Error processing file ${file.name}:`, error);
+                        // Log errors but continue to the next file
+                    }
+                }
+
+                if (totalEvents === 0) {
+                    showMessage("Analysis Complete", `Successfully processed ${successfulFiles} files, but found no valid events across all inputs. Total failures: ${failedFiles}. Please check your syllabi format or date range.`, false);
+                    return;
+                }
+
+                // Initial render setup:
+                renderEvents(generatedEvents); // This is the List View renderer
+                currentMonth = new Date(courseStartDate); // Set calendar to course start month
+                renderCalendar(); // Render the calendar grid
+                switchView('list'); // Show list view initially
+
+                resultsArea.classList.remove('hidden');
+                exportButton.disabled = false;
+                showMessage("Success!", `Successfully extracted ${totalEvents} events from ${successfulFiles} syllabus files. Review the list below, separated by course headings.`, false);
+
+            } catch (error) {
+                console.error("Overall Processing Error:", error);
+                showMessage("Generation Failed", `An overall error occurred during processing: ${error.message}. Check the browser console (F12) for details.`, true);
+            } finally {
+                // Reset loading state
+                generateButton.disabled = false;
+                buttonText.textContent = "Generate Calendar";
+                spinner.classList.add('hidden');
+            }
+        }
+
+        // --- View Switching (RE-ADDED) ---
+        function switchView(view) {
+            dayEventsDetail.classList.add('hidden'); // Hide details when switching views
+            if (view === 'list') {
+                listView.classList.remove('hidden');
+                calendarView.classList.add('hidden');
+                listViewBtn.classList.add('bg-blue-500', 'text-white');
+                listViewBtn.classList.remove('bg-gray-200', 'text-gray-700');
+                calendarViewBtn.classList.remove('bg-blue-500', 'text-white');
+                calendarViewBtn.classList.add('bg-gray-200', 'text-gray-700');
+            } else if (view === 'calendar') {
+                listView.classList.add('hidden');
+                calendarView.classList.remove('hidden');
+                calendarViewBtn.classList.add('bg-blue-500', 'text-white');
+                calendarViewBtn.classList.remove('bg-gray-200', 'text-gray-700');
+                listViewBtn.classList.remove('bg-blue-500', 'text-white');
+                listViewBtn.classList.add('bg-gray-200', 'text-gray-700');
+            }
+        }
+
+        listViewBtn.addEventListener('click', () => switchView('list'));
+        calendarViewBtn.addEventListener('click', () => switchView('calendar'));
+
+
+        // Renders the extracted events into the UI preview, grouped by class
+        function renderEvents(events) {
+            eventList.innerHTML = ''; // Clear previous results
+            
+            // 1. Group events by file name (course)
+            const groupedEvents = events.reduce((acc, event) => {
+                if (!acc[event.fileName]) {
+                    acc[event.fileName] = [];
+                }
+                acc[event.fileName].push(event);
+                return acc;
+            }, {});
+
+            // 2. Sort file names (courses) alphabetically for consistent ordering
+            const fileNames = Object.keys(groupedEvents).sort(); 
+
+            if (events.length === 0) {
+                 eventList.innerHTML = '<p class="text-gray-500 p-4 text-center">No assignments or exams found within the specified date range.</p>';
+                 return;
+            }
+
+            fileNames.forEach(fileName => {
+                // Sort events within this class by date
+                const classEvents = groupedEvents[fileName].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                // Get the clean tag for display
+                const cleanTag = getCourseTag(fileName);
+
+                // 3. Add the clear heading for the class
+                const classHeading = document.createElement('h3');
+                classHeading.className = 'text-xl font-bold text-gray-800 mt-6 mb-3 p-3 bg-gray-100 rounded-lg shadow-md border-l-4 border-blue-600';
+                classHeading.textContent = `Assignments for: ${cleanTag} (${fileName})`;
+                eventList.appendChild(classHeading);
+
+                // 4. Add events for that class
+                classEvents.forEach(event => {
+                    const date = new Date(event.date);
+                    const day = date.toLocaleDateString('en-US', { day: 'numeric' });
+                    const month = date.toLocaleDateString('en-US', { month: 'short' });
+                    const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    
+                    // Create the formatted title for the card
+                    const displayTitle = `[${cleanTag}] ${event.title}`;
+
+                    const eventCard = document.createElement('div');
+                    // Use neutral styling for card
+                    eventCard.className = `flex bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition duration-150 border border-gray-200`;
+                    eventCard.innerHTML = `
+                        <!-- Date Block -->
+                        <div class="flex-shrink-0 w-16 text-center">
+                            <div class="text-xs font-semibold uppercase text-blue-700">${weekday}</div>
+                            <div class="2xl font-bold text-gray-900">${day}</div>
+                            <div class="text-sm uppercase text-gray-500">${month}</div>
+                        </div>
+                        <!-- Content Block -->
+                        <div class="ml-4 border-l pl-4 border-gray-200 flex-1">
+                            <h3 class="text-lg font-semibold text-gray-800">${displayTitle}</h3>
+                            <p class="text-gray-600 mt-1">${event.description}</p>
+                        </div>
+                    `;
+                    eventList.appendChild(eventCard);
+                });
+                
+                // Add some space after the last event in the class
+                eventList.appendChild(document.createElement('div')).className = 'h-4';
+            });
+        }
+
+
+        // --- Calendar View Renderer (RE-ADDED) ---
+
+        function renderCalendar() {
+            calendarGrid.innerHTML = '';
+            dayEventsDetail.classList.add('hidden'); // Hide details when rerendering
+
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            
+            currentMonthYear.textContent = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+            const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 (Sun) to 6 (Sat)
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            const eventsByDay = {}; // Key: YYYY-MM-DD
+
+            // Group events for faster lookup
+            generatedEvents.forEach(event => {
+                if (event.date) {
+                    // Normalize date to YYYY-MM-DD
+                    const eventDate = event.date.substring(0, 10);
+                    if (!eventsByDay[eventDate]) {
+                        eventsByDay[eventDate] = [];
+                    }
+                    eventsByDay[eventDate].push(event);
+                }
+            });
+
+            // Fill leading empty cells
+            for (let i = 0; i < firstDayOfMonth; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'calendar-day';
+                calendarGrid.appendChild(emptyCell);
+            }
+
+            // Fill days of the month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const events = eventsByDay[dateKey] || [];
+                const hasEvents = events.length > 0;
+                
+                const dayCell = document.createElement('div');
+                dayCell.className = `calendar-day text-right border border-gray-100 ${hasEvents ? 'has-events' : 'bg-white'}`;
+                dayCell.innerHTML = `<span class="text-sm font-medium text-gray-800">${day}</span>`;
+                
+                if (hasEvents) {
+                    dayCell.dataset.date = dateKey;
+                    dayCell.addEventListener('click', () => showDayDetails(dateKey, events));
+                }
+
+                calendarGrid.appendChild(dayCell);
+            }
+        }
+
+        function showDayDetails(dateKey, events) {
+            // Adjust for display
+            const displayDate = new Date(dateKey + 'T00:00:00'); 
+            detailDateTitle.textContent = displayDate.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                timeZone: 'UTC' 
+            });
+            detailEventList.innerHTML = '';
+
+            events.forEach(event => {
+                const cleanTag = getCourseTag(event.fileName);
+                const displayTitle = `[${cleanTag}] ${event.title}`;
+                
+                const listItem = document.createElement('li');
+                listItem.className = 'py-1 border-b last:border-b-0';
+                listItem.innerHTML = `<p class="font-semibold text-gray-700">${displayTitle}</p><p class="text-gray-600 text-xs">${event.description}</p>`;
+                detailEventList.appendChild(listItem);
+            });
+            
+            dayEventsDetail.classList.remove('hidden');
+            dayEventsDetail.scrollIntoView({ behavior: 'smooth' }); // Scroll into view on click
+        }
+
+        prevMonthBtn.addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            renderCalendar();
+        });
+
+        nextMonthBtn.addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            renderCalendar();
+        });
+
+
+        // --- Export Logic (Consolidated Only) ---
+        
+        // Helper function to generate the ICS content string for a given list of events
+        function generateIcsContent(events) {
+            const icsHeader = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Syllabus Calendar Generator//EN\nCALSCALE:GREGORIAN`;
+            let icsEvents = '';
+
+            events.forEach((event, index) => {
+                // Ensure date is a valid format (YYYY-MM-DD)
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(event.date)) return;
+
+                const dateString = event.date.replace(/-/g, ''); // YYYYMMDD
+                const uid = `${dateString}-${index}-${appId}.com`; 
+
+                // 1. Clean the course name for the summary field
+                const cleanTag = getCourseTag(event.fileName);
+                const newSummary = `[${cleanTag}] ${event.title}`;
+
+                // --- ALL-DAY EVENT LOGIC ---
+                const parts = event.date.split('-').map(p => parseInt(p, 10));
+                const startDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+                const endDate = new Date(startDate.getTime());
+                endDate.setUTCDate(endDate.getUTCDate() + 1);
+
+                const dtstart = startDate.toISOString().substring(0, 10).replace(/-/g, '');
+                const dtend = endDate.toISOString().substring(0, 10).replace(/-/g, '');
+
+                // Ensure the description contains the original filename for easy lookup in GCal
+                let description = `[Course: ${event.fileName}] ${event.description || ''}`;
+                
+                icsEvents += `
+BEGIN:VEVENT
+UID:${uid}
+DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').substring(0, 15)}Z
+DTSTART;VALUE=DATE:${dtstart}
+DTEND;VALUE=DATE:${dtend}
+SUMMARY:${newSummary}
+DESCRIPTION:${description.replace(/\n/g, '\\n')}
+STATUS:CONFIRMED
+END:VEVENT
+                `.trim() + '\n';
+            });
+
+            const icsFooter = 'END:VCALENDAR';
+            return `${icsHeader}\n${icsEvents}${icsFooter}`;
+        }
+        
+        // Triggers the consolidated ICS download
+        function exportIcs() {
+            if (generatedEvents.length === 0) {
+                showMessage("No Events", "Please generate events first.", true);
+                return;
+            }
+            
+            const icsContent = generateIcsContent(generatedEvents);
+            const blob = new Blob([icsContent], { type: 'text/calendar' });
+            
+            // Trigger download
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'consolidated_syllabus_events.ics';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Guide the user to the import page
+            showMessage(
+                "Download Complete! 🚀", 
+                "Your 'consolidated_syllabus_events.ics' file has been downloaded. Open the new tab to import it.", 
+                false // Not an error
+            );
+
+            // Automatically open Google Calendar in a new tab
+            setTimeout(() => {
+                window.open('https://calendar.google.com/calendar/r/settings/export', '_blank');
+            }, 500); 
+        }
+
+        // Attach event listener
+        generateButton.addEventListener('click', fetchEventsFromGemini);
+        exportButton.addEventListener('click', exportIcs);
+    </script>
+</body>
+</html>
