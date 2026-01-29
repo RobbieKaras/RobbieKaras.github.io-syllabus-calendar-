@@ -226,8 +226,7 @@
         initializeFirebase();
 
         // --- Core Application Logic ---
-        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
-        const API_KEY = "AIzaSyCBJ3PqVIcEPMxNM2ZTNSA8WxAslBcu4ps"; // Canvas environment provides API key
+        const GEMINI_PROXY_URL = "/.netlify/functions/gemini";
 
         // Global state for events and calendar (RE-ADDED calendar state)
         let generatedEvents = [];
@@ -336,10 +335,10 @@
                 }
             };
 
-            const response = await exponentialBackoffFetch(API_URL + API_KEY, {
+            const response = await exponentialBackoffFetch(GEMINI_PROXY_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ payload })
             });
 
             const result = await response.json();
