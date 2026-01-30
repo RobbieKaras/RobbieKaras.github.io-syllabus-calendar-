@@ -2,7 +2,7 @@
 
 A simple web application that uses the **Gemini API** to intelligently extract due dates, exams, and assignments from one or more course syllabi and generate a single, consolidated `.ics` file for easy import into **Google Calendar**, **Outlook**, or **Apple Calendar**.
 
-**Live Demo:** [https://robbiekaras.github.io/syllabus-calendar/](https://robbiekaras.github.io/RobbieKaras.github.io-syllabus-calendar-/)
+**Live Demo:** [syllabus-google-calendar.netlify.app](syllabus-google-calendar.netlify.app)
 
 ---
 
